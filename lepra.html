@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Охота на Лепрекона</title>
+    <style>
+        .static-content { 
+            border-bottom: 2px solid #2ecc71; 
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #dynamic-content {
+            margin: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        input, button { 
+            padding: 12px;
+            margin: 8px;
+            border: 1px solid #2ecc71;
+            border-radius: 4px;
+        }
+        button {
+            background: #2ecc71;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="static-content">
+            <h1>🕵️♂︄1�7 Охота на Лепрекона: Камни Добротности</h1>
+            <p class="alex">🔮 Алекс: "Оракул говорит: «Три шага вперёд, два назад...»"</p>
+        </div>
+
+        <div id="dynamic-content"></div>
+
+        <form id="userForm">
+            <input type="text" id="userName" placeholder="Ваше имя" required>
+            <input type="number" id="userAge" placeholder="Ваш возраст" required>
+            <button type="button" onclick="initStory()">Начать квест 🌟</button>
+        </form>
+    </div>
+
+    <script>
+        // ======================
+        // КОНФИГУРАЦИЯ
+        // ======================
+        const API_KEY = 'sk-27969cf26a24400dbed7a207cf18493d'; // 🔒 ЗАМЕНИТЕ НА РЕАЛЬНЫЙ КЛЮЧ
+        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/'; // 🌐 Публичный прокси
+
+        // ======================
+        // СИСТЕМА ГЕНЕРАЦИИ
+        // ======================
+        function generateSeed(name, age) {
+            let hash = 0;
+            const combined = name + age.toString();
+            for (let i = 0; i < combined.length; i++) {
+                hash = (hash << 5) - hash + combined.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
+
+        const STATIC_CONFIG = {
+            characters: {
+                Alex: {
+                    traits: "🔭 Рационалист в очках, верит в технологии",
+                    phrases: [
+                        "⚛️ Это нарушает законы физики!", 
+                        "🤖 Оракул никогда не ошибается"
+                    ]
+                },
+                Regina: {
+                    traits: "📖 Девочка с блокнотом шифров",
+                    phrases: [
+                        "🔍 Доверяй, но проверяй", 
+                        "🕵️♀︄1�7 Здесь что-то не сходится..."
+                    ]
+                }
+            },
+            locations: [
+                "🏠 Дом с рыжими ставнями",
+                "⏄1�7 Лавка времени",
+                "🐚 Пляж ракушек"
+            ]
+        };
+
+        // ======================
+        // API ИНТЕГРАЦИЯ
+        // ======================
+        async function generateStoryContent(prompt) {
+            try {
+                const apiUrl = CORS_PROXY + 'https://api.deepseek.com/v1/chat/completions';
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "deepseek-chat",
+                        messages: [{ 
+                            role: "user", 
+                            content: prompt + "\n\nФормат ответа: HTML с эмодзи, без Markdown"
+                        }],
+                        temperature: 0.7,
+                        max_tokens: 600
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                const content = data.choices[0].message.content;
+
+                if (!validateContent(content)) {
+                    return "<p>🚫 Контент содержит недопустимые элементы</p>";
+                }
+                
+                return content;
+
+            } catch (error) {
+                console.error('🚨 Ошибка:', error);
+                return `<p>⚠️ Ошибка: ${error.message}</p>`;
+            }
+        }
+
+        // ======================
+        // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+        // ======================
+        function buildPrompt(seed) {
+            const elements = {
+                time: ["🌅 Рассвет", "🌕 Полночь", "🌇 Сумерки"][seed % 3],
+                symbol: ["🔑 Ключ-Мёбиус", "🪞 Зеркало", "🌀 Спираль"][seed % 3],
+                obstacle: ["👣 Загадочные следы", "🌫︄1�7 Исчезающая тропа", "🗿 Говорящий камень"][seed % 3]
+            };
+
+            return `Напиши фрагмент истории в стиле магического реализма:
+                - Персонажи: ${JSON.stringify(STATIC_CONFIG.characters, null, 2)}
+                - Локация: ${STATIC_CONFIG.locations.join(', ')}
+                - Время: ${elements.time}
+                - Символ: ${elements.symbol}
+                - Препятствие: ${elements.obstacle}
+                - Стиль: 70% Хорхе Луис Борхес, 30% детектив`;
+        }
+
+        function validateContent(content) {
+            const forbidden = ["насилие", "политика", "религия"];
+            return !forbidden.some(word => content.toLowerCase().includes(word));
+        }
+
+        // ======================
+        // ИНИЦИАЛИЗАЦИЯ
+        // ======================
+        async function initStory() {
+            const name = document.getElementById('userName').value.trim();
+            const age = document.getElementById('userAge').value;
+
+            if (!name || !age || age < 8 || age > 100) {
+                alert("🚨 Введите корректные данные!\nИмя и возраст (8-100)");
+                return;
+            }
+
+            try {
+                document.getElementById('userForm').style.display = 'none';
+                document.getElementById('dynamic-content').innerHTML = "🔮 Генерируем историю...";
+
+                const seed = generateSeed(name, age);
+                localStorage.setItem('currentSeed', seed);
+                
+                const prompt = buildPrompt(seed);
+                const story = await generateStoryContent(prompt);
+                
+                document.getElementById('dynamic-content').innerHTML = story;
+                
+            } catch (error) {
+                document.getElementById('dynamic-content').innerHTML = 
+                    `<p>⛄1�7 Критическая ошибка: ${error.message}</p>`;
+            }
+        }
+
+        // ======================
+        // ВОССТАНОВЛЕНИЕ СЕССИИ
+        // ======================
+        window.onload = async () => {
+            const savedSeed = localStorage.getItem('currentSeed');
+            if (savedSeed) {
+                document.getElementById('userForm').style.display = 'none';
+                document.getElementById('dynamic-content').innerHTML = "🔍 Загружаем ваше приключение...";
+                try {
+                    const story = await generateStoryContent(buildPrompt(savedSeed));
+                    document.getElementById('dynamic-content').innerHTML = story;
+                } catch (error) {
+                    console.error("Ошибка восстановления:", error);
+                }
+            }
+        };
+    </script>
+</body>
+</html>
+
